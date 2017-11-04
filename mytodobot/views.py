@@ -61,7 +61,7 @@ class MyTodoBotView(generic.View):
                 description = message_text.split("#")[2]
 
                 try:
-                    task = Task.objects.get(id=message_id)
+                    task = Task.objects.get(id=message_id, userid=receiver_id)
                     task.description = description
                     task.save()
                 except ObjectDoesNotExist:
@@ -71,13 +71,14 @@ class MyTodoBotView(generic.View):
                 message_id = int(message_text.split("#")[1])
 
                 try:
-                    Task.objects.get(id=message_id).delete()
+                    Task.objects.get(id=message_id, userid=receiver_id).delete()
                 except ObjectDoesNotExist:
                     reply = 'Task does not exist'
             elif '/show' in message_text:
-                reply = 'show'
+                for task in Task.objects.filter(userid=receiver_id):
+                    reply += '\nID: ' + str(task.id) + ' DESCRIPTION: ' + task.description
         else:
             reply = '\nWelcome to Mytodo bot.\nPlease use the commands below.\n  ' \
-                    'ALL TASKS: /show \n  ADD TASK: /add#<Description> \n  DELETE TASK: /delete#<Task No> \n  ' \
+                    'ALL TASKS: /show# \n  ADD TASK: /add#<Description> \n  DELETE TASK: /delete#<Task No> \n  ' \
                     'EDIT TASK: /edit#<Task No>#<Description>'
         return reply

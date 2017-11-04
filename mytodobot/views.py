@@ -1,5 +1,6 @@
 import json, requests
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.views import generic
 from django.http.response import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -47,22 +48,36 @@ class MyTodoBotView(generic.View):
 
     def process_message(self, message, receiver_id):
         message_text = message['message']['text']
+
         if '/add' in message_text:
             reply = 'Successfully added task'
-            refined_message_text = message_text.replace('/add ', '')
-            Task(userid=receiver_id, text=refined_message_text).save()
+            description = message_text.split("#")[1]
+            Task(userid=receiver_id, description=description).save()
         elif '/edit' in message_text:
             reply = 'Successfully edited task'
-            message_id = message_text[4:7]
-            print("MESSAGE ID")
-            print(message_id)
-            # Task.objects.get(id=message_id)
+            message_id = int(message_text.split("#")[1])
+            description = message_text.split("#")[2]
+
+            # incase user trys to edit a task that does not exist,
+            # we create a new task
+            try:
+                task = Task.objects.get(id=message_id)
+                task.description = description
+                task.save()
+            except ObjectDoesNotExist:
+                reply = 'Task does not exist'
         elif '/delete' in message_text:
             reply = 'Successfully deleted task'
+            message_id = int(message_text.split("#")[1])
+
+            try:
+                Task.objects.get(id=message_id).delete()
+            except ObjectDoesNotExist:
+                reply = 'Task does not exist'
         elif '/show' in message_text:
             reply = 'show'
         else:
             reply = '\nWelcome to Mytodo bot.\nPlease use the commands below.\n  ' \
-                    'ALL TASKS: /show \n  ADD TASK: /add <Message> \n  DELETE TASK: /delete <Task No> \n  ' \
-                    'EDIT TASK: /edit <Task No> <Message>'
+                    'ALL TASKS: /show \n  ADD TASK: /add#<Description> \n  DELETE TASK: /delete#<Task No> \n  ' \
+                    'EDIT TASK: /edit#<Task No>#<Description>'
         return reply

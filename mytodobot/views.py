@@ -40,10 +40,10 @@ class MyTodoBotView(generic.View):
             if '/add' in message_text:
                 reply = 'Successfully added task'
                 description = message_text.split("#")[1]
-                task = Task(userid=receiver_id, description=description).save()
-                if task:
-                    all_tasks = self.get_all_tasks(receiver_id)
-                    self.post_slack_message(all_tasks)
+                Task(userid=receiver_id, description=description).save()
+
+                all_tasks = self.get_all_tasks(receiver_id)
+                self.post_slack_message(SLACK_CREATED_TASKS_URL, all_tasks)
 
             elif '/edit' in message_text:
                 reply = 'Successfully edited task'
@@ -62,6 +62,9 @@ class MyTodoBotView(generic.View):
 
                 try:
                     Task.objects.get(id=task_id, userid=receiver_id).delete()
+
+                    all_tasks = self.get_all_tasks(receiver_id)
+                    self.post_slack_message(SLACK_DELETED_TASKS_URL, all_tasks)
                 except ObjectDoesNotExist:
                     reply = 'Task does not exist'
             elif '/show' in message_text:
@@ -70,7 +73,7 @@ class MyTodoBotView(generic.View):
             reply = WELCOME_MESSAGE
         return reply
 
-    def post_facebook_message(fbid, reply):
+    def post_facebook_message(self, fbid, reply):
         user_details_url = "https://graph.facebook.com/v2.6/%s" % fbid
         user_details_params = {'fields': 'first_name,last_name,profile_pic', 'access_token': PAGE_ACCESS_TOKEN}
         user_details = requests.get(user_details_url, user_details_params).json()
@@ -81,18 +84,13 @@ class MyTodoBotView(generic.View):
         status = requests.post(post_message_url, headers={"Content-Type": "application/json"}, data=response_msg)
         print(status.json())
 
-    def post_slack_message(self, all_tasks):
-        """
-        curl -X POST -H 'Content-type: application/json' --data '{"text":"Hello, World!"}'
-        https://hooks.slack.com/services/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
-        """
-        request = requests.post('https://hooks.slack.com/services/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',
-                                data=json.dumps({"text": all_tasks}))
+    def post_slack_message(self, url, all_tasks):
+        request = requests.post(url, data=json.dumps({"text": all_tasks}))
         print(all_tasks)
         print(request)
 
     def get_all_tasks(self, receiver_id):
         reply = ''
         for task in Task.objects.filter(userid=receiver_id):
-            reply += '\nID: ' + str(task.id) + ' DESCRIPTION: ' + task.description
+            reply += '\nTASK NO: ' + str(task.id) + ' DESCRIPTION: ' + task.description
         return reply

@@ -10,18 +10,6 @@ from mytodobot.models import Task
 from mytodobot.utils import *
 
 
-def post_facebook_message(fbid, reply):
-    user_details_url = "https://graph.facebook.com/v2.6/%s" % fbid
-    user_details_params = {'fields': 'first_name,last_name,profile_pic', 'access_token': PAGE_ACCESS_TOKEN}
-    user_details = requests.get(user_details_url, user_details_params).json()
-
-    reply = 'Hi ' + user_details['first_name'] + ' ' + reply
-    post_message_url = 'https://graph.facebook.com/v2.6/me/messages?access_token=%s' % PAGE_ACCESS_TOKEN
-    response_msg = json.dumps({"recipient": {"id": fbid}, "message": {"text": reply}})
-    status = requests.post(post_message_url, headers={"Content-Type": "application/json"}, data=response_msg)
-    print(status.json())
-
-
 class MyTodoBotView(generic.View):
     def get(self, request, *args, **kwargs):
         if self.request.GET.get('hub.verify_token') == VERIFY_TOKEN:
@@ -41,7 +29,7 @@ class MyTodoBotView(generic.View):
                 if 'message' in message:
                     print(message)
                     reply = self.process_message(message, message['recipient']['id'])
-                    post_facebook_message(message['sender']['id'], reply)
+                    self.post_facebook_message(message['sender']['id'], reply)
         return HttpResponse()
 
     def process_message(self, message, receiver_id):
@@ -52,7 +40,11 @@ class MyTodoBotView(generic.View):
             if '/add' in message_text:
                 reply = 'Successfully added task'
                 description = message_text.split("#")[1]
-                Task(userid=receiver_id, description=description).save()
+                task = Task(userid=receiver_id, description=description).save()
+                if task:
+                    all_tasks = self.get_all_tasks(receiver_id)
+                    self.post_slack_message(all_tasks)
+
             elif '/edit' in message_text:
                 reply = 'Successfully edited task'
                 task_id = int(message_text.split("#")[1])
@@ -73,8 +65,34 @@ class MyTodoBotView(generic.View):
                 except ObjectDoesNotExist:
                     reply = 'Task does not exist'
             elif '/show' in message_text:
-                for task in Task.objects.filter(userid=receiver_id):
-                    reply += '\nID: ' + str(task.id) + ' DESCRIPTION: ' + task.description
+                reply = self.get_all_tasks(receiver_id)
         else:
             reply = WELCOME_MESSAGE
+        return reply
+
+    def post_facebook_message(fbid, reply):
+        user_details_url = "https://graph.facebook.com/v2.6/%s" % fbid
+        user_details_params = {'fields': 'first_name,last_name,profile_pic', 'access_token': PAGE_ACCESS_TOKEN}
+        user_details = requests.get(user_details_url, user_details_params).json()
+
+        reply = 'Hi ' + user_details['first_name'] + ' ' + reply
+        post_message_url = 'https://graph.facebook.com/v2.6/me/messages?access_token=%s' % PAGE_ACCESS_TOKEN
+        response_msg = json.dumps({"recipient": {"id": fbid}, "message": {"text": reply}})
+        status = requests.post(post_message_url, headers={"Content-Type": "application/json"}, data=response_msg)
+        print(status.json())
+
+    def post_slack_message(self, all_tasks):
+        """
+        curl -X POST -H 'Content-type: application/json' --data '{"text":"Hello, World!"}'
+        https://hooks.slack.com/services/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
+        """
+        request = requests.post('https://hooks.slack.com/services/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',
+                                data=json.dumps({"text": all_tasks}))
+        print(all_tasks)
+        print(request)
+
+    def get_all_tasks(self, receiver_id):
+        reply = ''
+        for task in Task.objects.filter(userid=receiver_id):
+            reply += '\nID: ' + str(task.id) + ' DESCRIPTION: ' + task.description
         return reply

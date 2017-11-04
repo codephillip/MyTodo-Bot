@@ -7,9 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 from mytodobot.models import Task
-
-PAGE_ACCESS_TOKEN = "EAACDVIAXlXoBACdKWbRLaq1rcJi9ON4MNzSjFnAY82ZAew3WNkHnxS79lVCyFGj1CI8SdtL50wMezcGYi5zSdhhCIjgvn85FgkqnocJn6P2uIpNLZAX7iiceHfdQdBe6JRq8ZAGy5sDSlm4ZCqnHTWb0ua266RUeYsUpn97JIhWLhLZABEYDd"
-VERIFY_TOKEN = "12341234"
+from mytodobot.utils import *
 
 
 def post_facebook_message(fbid, reply):
@@ -57,28 +55,26 @@ class MyTodoBotView(generic.View):
                 Task(userid=receiver_id, description=description).save()
             elif '/edit' in message_text:
                 reply = 'Successfully edited task'
-                message_id = int(message_text.split("#")[1])
+                task_id = int(message_text.split("#")[1])
                 description = message_text.split("#")[2]
 
                 try:
-                    task = Task.objects.get(id=message_id, userid=receiver_id)
+                    task = Task.objects.get(id=task_id, userid=receiver_id)
                     task.description = description
                     task.save()
                 except ObjectDoesNotExist:
                     reply = 'Task does not exist'
             elif '/delete' in message_text:
                 reply = 'Successfully deleted task'
-                message_id = int(message_text.split("#")[1])
+                task_id = int(message_text.split("#")[1])
 
                 try:
-                    Task.objects.get(id=message_id, userid=receiver_id).delete()
+                    Task.objects.get(id=task_id, userid=receiver_id).delete()
                 except ObjectDoesNotExist:
                     reply = 'Task does not exist'
             elif '/show' in message_text:
                 for task in Task.objects.filter(userid=receiver_id):
                     reply += '\nID: ' + str(task.id) + ' DESCRIPTION: ' + task.description
         else:
-            reply = '\nWelcome to Mytodo bot.\nPlease use the commands below.\n  ' \
-                    'ALL TASKS: /show# \n  ADD TASK: /add#<Description> \n  DELETE TASK: /delete#<Task No> \n  ' \
-                    'EDIT TASK: /edit#<Task No>#<Description>'
+            reply = WELCOME_MESSAGE
         return reply

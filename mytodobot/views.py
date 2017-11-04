@@ -48,34 +48,34 @@ class MyTodoBotView(generic.View):
 
     def process_message(self, message, receiver_id):
         message_text = message['message']['text']
+        reply = ''
 
-        if '/add' in message_text:
-            reply = 'Successfully added task'
-            description = message_text.split("#")[1]
-            Task(userid=receiver_id, description=description).save()
-        elif '/edit' in message_text:
-            reply = 'Successfully edited task'
-            message_id = int(message_text.split("#")[1])
-            description = message_text.split("#")[2]
+        if '#' in message_text:
+            if '/add' in message_text:
+                reply = 'Successfully added task'
+                description = message_text.split("#")[1]
+                Task(userid=receiver_id, description=description).save()
+            elif '/edit' in message_text:
+                reply = 'Successfully edited task'
+                message_id = int(message_text.split("#")[1])
+                description = message_text.split("#")[2]
 
-            # incase user trys to edit a task that does not exist,
-            # we create a new task
-            try:
-                task = Task.objects.get(id=message_id)
-                task.description = description
-                task.save()
-            except ObjectDoesNotExist:
-                reply = 'Task does not exist'
-        elif '/delete' in message_text:
-            reply = 'Successfully deleted task'
-            message_id = int(message_text.split("#")[1])
+                try:
+                    task = Task.objects.get(id=message_id)
+                    task.description = description
+                    task.save()
+                except ObjectDoesNotExist:
+                    reply = 'Task does not exist'
+            elif '/delete' in message_text:
+                reply = 'Successfully deleted task'
+                message_id = int(message_text.split("#")[1])
 
-            try:
-                Task.objects.get(id=message_id).delete()
-            except ObjectDoesNotExist:
-                reply = 'Task does not exist'
-        elif '/show' in message_text:
-            reply = 'show'
+                try:
+                    Task.objects.get(id=message_id).delete()
+                except ObjectDoesNotExist:
+                    reply = 'Task does not exist'
+            elif '/show' in message_text:
+                reply = 'show'
         else:
             reply = '\nWelcome to Mytodo bot.\nPlease use the commands below.\n  ' \
                     'ALL TASKS: /show \n  ADD TASK: /add#<Description> \n  DELETE TASK: /delete#<Task No> \n  ' \
